@@ -19,6 +19,15 @@
   select { font: inherit; font-size: 15px; border-radius: 9px; padding: 6px 8px; }
   .go { background: #34c77b; color: #0e1f3d; font-weight: 700; font-size: 17px; padding: 10px 18px; margin-left: auto; }
   .page2 { margin-top: 24px; }
+  /* tiled poster sheets (landscape Letter, printed edge-to-edge at 100%) */
+  .tile-page { position: relative; width: 11in; height: 8.5in; background: #fff; color: #111; margin: 0 auto 24px; box-shadow: 0 6px 30px rgba(0,0,0,.5); overflow: hidden; font-family: 'Fredoka', sans-serif; }
+  .tp-svg { position: absolute; top: 0.55in; display: block; }
+  .tp-head { position: absolute; top: 0.28in; left: 0.6in; right: 1.6in; font-size: 10pt; color: #444; }
+  .tp-name { position: absolute; top: 0.18in; right: 0.45in; font-size: 22pt; font-weight: 700; color: #d33; }
+  .tp-foot { position: absolute; bottom: 0.35in; left: 0.6in; right: 0.6in; font-size: 9.5pt; color: #444; }
+  .guide .tp-in { padding: 0.45in 0.6in; }
+  .tp-title { font-size: 18pt; font-weight: 700; color: #1c3563; text-align: center; }
+  .tp-steps { font-size: 11pt; line-height: 1.4; margin: 0.08in 0 0; padding-left: 0.3in; }
   .tip { width: 100%; font-size: 13.5px; color: #cdd9ff; }
   .stage { padding: 20px; display: grid; place-items: center; }
   .sheet { background: #fff; box-shadow: 0 6px 30px rgba(0,0,0,.5); }
@@ -34,6 +43,8 @@
     .bar { display: none; }
     .stage { padding: 0; display: block; }
     .page2 { margin-top: 0; break-before: page; page-break-before: always; }
+    .tile-page { margin: 0; box-shadow: none; break-after: page; page-break-after: always; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    #tiles .tile-page:last-child { break-after: auto; page-break-after: auto; }
     .sheet { box-shadow: none; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .sheet.letter.wide { width: 10.4in; height: 7.9in; aspect-ratio: auto; }
     .sheet.letter.tall { width: 7.9in; height: 10.4in; aspect-ratio: auto; }
@@ -45,7 +56,7 @@
 <body>
 <div class="bar">
   <a href="./?tab=bracket">⬅ Back</a>
-  <div class="group" id="size"><b>SIZE</b><button data-v="letter" class="on">📄 Letter</button><button data-v="poster">🖼️ Poster (any size)</button><button data-v="custom">📐 Custom size</button>
+  <div class="group" id="size"><b>SIZE</b><button data-v="letter" class="on">📄 Letter</button><button data-v="poster">🖼️ Poster (any size)</button><button data-v="custom">📐 One big sheet</button><button data-v="tiles">🧩 Big poster on Letter sheets</button>
     <span id="custom-dims" style="display:none;align-items:center;gap:4px"><input id="cw" type="number" min="8" max="200" step="0.5" style="width:62px;font:inherit;border-radius:8px;border:none;padding:6px"> × <input id="ch" type="number" min="8" max="200" step="0.5" style="width:62px;font:inherit;border-radius:8px;border:none;padding:6px"> in</span></div>
   <div class="group" id="layout"><b>SHAPE</b><button data-v="wide" class="on">▭ Wide</button><button data-v="tall">▯ Tall</button></div>
   <div class="group" id="mode"><b>FILL</b><button data-v="blank" class="on">✏️ Blank to color in</button><button data-v="results">⚾ Real results so far</button><button data-v="picks">⭐ Someone's picks</button></div>
@@ -54,12 +65,12 @@
   <button class="go" onclick="window.print()">🖨️ Print</button>
   <div class="tip" id="tip"></div>
 </div>
-<div class="stage"><div class="sheet letter wide" id="sheet"></div><div class="sheet letter wide page2" id="sheet2"></div></div>
-<script src="mlb-data.js?v=20260928e"></script>
-<script src="mlb-espn.js?v=20260928e"></script>
-<script src="mlb-facts.js?v=20260928e"></script>
-<script src="mlb-map.js?v=20260928e"></script>
-<script src="print.js?v=20260928e"></script>
+<div class="stage"><div id="tiles" style="display:none"></div><div class="sheet letter wide" id="sheet"></div><div class="sheet letter wide page2" id="sheet2"></div></div>
+<script src="mlb-data.js?v=20260929a"></script>
+<script src="mlb-espn.js?v=20260929a"></script>
+<script src="mlb-facts.js?v=20260929a"></script>
+<script src="mlb-map.js?v=20260929a"></script>
+<script src="print.js?v=20260929a"></script>
 <script>
 (function () {
   var st = { size: "letter", layout: "wide", mode: "blank", player: null, extra: "yes", w: 49, h: 33 };
@@ -96,19 +107,28 @@
     });
     sel.style.display = st.mode === "picks" ? "" : "none";
     // Letter: we fix the paper. Poster: we leave the paper size to the print dialog.
-    document.getElementById("custom-dims").style.display = st.size === "custom" ? "inline-flex" : "none";
+    var big = st.size === "custom" || st.size === "tiles";
+    document.getElementById("custom-dims").style.display = big ? "inline-flex" : "none";
+    document.getElementById("tiles").style.display = st.size === "tiles" ? "" : "none";
+    document.getElementById("sheet").style.display = st.size === "tiles" ? "none" : "";
     var cW = st.w - 2 * MARGIN, cH = st.h - 2 * MARGIN;
     // custom: the page IS the paper; the sheet fills it exactly and the layout takes its shape
-    document.getElementById("custom-style").textContent = st.size !== "custom" ? "" :
+    document.getElementById("custom-style").textContent = !big ? "" :
       ".sheet.custom { width: min(96vw, 1400px); aspect-ratio: " + cW + " / " + cH + "; } " +
+      ".sheet.tiles.page2 { width: min(96vw, 1100px); aspect-ratio: 11 / 8.5; } @media print { .sheet.tiles.page2 { width: 10.4in; height: 7.9in; margin: 0.3in auto 0; aspect-ratio: auto; } } " +
       "@media print { .sheet.custom { width: " + cW + "in; height: " + (cH - 0.02) + "in; aspect-ratio: auto; } }";
-    var aspect = st.size === "custom" ? cW / cH : 0;
-    document.getElementById("page-style").textContent = st.size === "custom"
+    var aspect = st.size === "custom" ? cW / cH : 0;   // tiles: the tiler sets its own; its page 2 is plain Letter
+    document.getElementById("page-style").textContent = st.size === "tiles"
+      ? "@page { size: letter landscape; margin: 0; }"
+      : st.size === "custom"
       ? "@page { size: " + st.w + "in " + st.h + "in; margin: " + MARGIN + "in; }"
       : st.size === "letter"
       ? "@page { size: letter " + (st.layout === "tall" ? "portrait" : "landscape") + "; margin: 0.3in; }"
       : "@page { margin: 0.4in; }";
-    document.getElementById("tip").innerHTML = st.size === "custom"
+    var TG = window.MLBPrint.tileGrid(st.w, st.h);
+    document.getElementById("tip").innerHTML = st.size === "tiles"
+      ? "🧩 <b>" + (TG.cols * TG.rows) + " Letter sheets</b> (" + TG.cols + " across × " + TG.rows + " down) + 1 guide page = a <b>" + st.w + " × " + st.h + " in</b> poster. In the print dialog: <b>Paper: Letter</b>, <b>Layout: Landscape</b>, <b>Margins: None</b> (or Default), <b>Scale: 100 / Actual size</b>, <b>Background graphics: on</b>."
+      : st.size === "custom"
       ? "📐 Page is exactly <b>" + st.w + " × " + st.h + " in</b> (½-inch margins). Click Print, choose <b>Save as PDF</b>, leave Margins and Scale on <b>Default</b>, and send the PDF to your print shop. It's all vector lines and text, so it's sharp at any size."
       : st.size === "letter"
       ? "📄 Prints on regular 8½×11 paper, " + (st.layout === "tall" ? "portrait" : "landscape") + ". Turn on <b>Background graphics</b> for team colors."
@@ -124,12 +144,17 @@
       layout: st.layout, mode: st.mode, picks: picks, season: (feed && feed.season) || 2026, subtitle: subtitle,
       footer: st.mode === "results" && feed && feed.updated ? "Results as of " + new Date(feed.updated).toLocaleString("en-US") + " · " + here : here,
     });
+    if (st.size === "tiles") {
+      var T = window.MLBPrint.tiles(res, { w: st.w, h: st.h, layout: "wide", mode: st.mode, picks: picks, season: (feed && feed.season) || 2026, subtitle: subtitle,
+        footer: st.mode === "results" && feed && feed.updated ? "Results as of " + new Date(feed.updated).toLocaleString("en-US") + " · " + here : here });
+      document.getElementById("tiles").innerHTML = T.html;
+    }
     var s2 = document.getElementById("sheet2");
     s2.className = "sheet " + st.size + " " + st.layout + " page2";
     s2.style.display = st.extra === "yes" ? "" : "none";
     if (st.extra === "yes") s2.innerHTML = window.MLBPrint.page2(res, { layout: st.layout, mode: st.mode, aspect: aspect });
     var u = new URL(location.href); u.searchParams.set("extra", st.extra); u.searchParams.set("size", st.size); u.searchParams.set("layout", st.layout); u.searchParams.set("mode", st.mode);
-    if (st.size === "custom") { u.searchParams.set("w", st.w); u.searchParams.set("h", st.h); } else { u.searchParams.delete("w"); u.searchParams.delete("h"); }
+    if (big) { u.searchParams.set("w", st.w); u.searchParams.set("h", st.h); } else { u.searchParams.delete("w"); u.searchParams.delete("h"); }
     history.replaceState(null, "", u);
   }
   render();

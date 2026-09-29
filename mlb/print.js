@@ -319,5 +319,64 @@
     return svg + '</svg>';
   }
 
-  window.MLBPrint = { build: build, page2: page2 };
+
+  /* ---- tiled poster: a W x H inch poster printed on landscape Letter sheets ----
+     Each sheet carries one tile plus a 0.3in "overlap" strip on its right and bottom edges.
+     Assembly: cut each sheet on its dashed left/top line, lay it over the gray strip of the
+     sheet to its left / above, line up, tape. Rows are letters (A = top), columns numbers. */
+  var SHEET_W = 11, SHEET_H = 8.5, FLAP = 0.3, MAX_TW = 9.8, MAX_TH = 7.0, POSTER_MARGIN = 0.5;
+  function tileGrid(W, H) {
+    var cols = Math.ceil(W / MAX_TW - 1e-9), rows = Math.ceil(H / MAX_TH - 1e-9);
+    return { cols: cols, rows: rows, tw: W / cols, th: H / rows };
+  }
+  function rowName(r) { return String.fromCharCode(65 + r); }
+  function tiles(res, opt) {
+    var W = opt.w, H = opt.h, G = tileGrid(W, H);
+    var inner = build(res, Object.assign({}, opt, { aspect: (W - 2 * POSTER_MARGIN) / (H - 2 * POSTER_MARGIN) }))
+      .replace("<svg ", '<svg x="' + POSTER_MARGIN + '" y="' + POSTER_MARGIN + '" width="' + (W - 2 * POSTER_MARGIN) + '" height="' + (H - 2 * POSTER_MARGIN) + '" ');
+    var n = G.cols * G.rows, html = "";
+    // guide sheet
+    var gw = 9.6, gh = gw * H / W;
+    if (gh > 5.2) { gh = 5.2; gw = gh * W / H; }
+    var grid = "";
+    for (var r = 0; r < G.rows; r++) for (var c = 0; c < G.cols; c++) {
+      grid += '<rect x="' + (c * G.tw) + '" y="' + (r * G.th) + '" width="' + G.tw + '" height="' + G.th + '" fill="none" stroke="#d33" stroke-width="' + (W / 400) + '"/>';
+      grid += '<text x="' + ((c + 0.5) * G.tw) + '" y="' + ((r + 0.5) * G.th + H / 60) + '" font-size="' + (H / 16) + '" font-weight="700" text-anchor="middle" fill="#d33" fill-opacity=".75" font-family="Fredoka, sans-serif">' + rowName(r) + (c + 1) + '</text>';
+    }
+    html += '<div class="tile-page guide"><div class="tp-in">' +
+      '<div class="tp-title">🧩 Your ' + W + ' × ' + H + ' inch wall bracket: ' + n + ' sheets + this guide</div>' +
+      '<svg xmlns="' + NS + '" viewBox="0 0 ' + W + ' ' + H + '" style="width:' + gw + 'in;height:' + gh + 'in;display:block;margin:0.1in auto;border:1px solid #999"><rect width="' + W + '" height="' + H + '" fill="#fff"/>' + inner + grid + '</svg>' +
+      '<ol class="tp-steps">' +
+      '<li><b>Print every page at 100%</b> ("Actual size", not "Fit to page"), Letter paper, <b>landscape</b>. Turn on "Background graphics" for team colors.</li>' +
+      '<li><b>Lay the sheets out like the map above</b>: rows <b>A</b> (top) to <b>' + rowName(G.rows - 1) + '</b> (bottom), columns <b>1</b> (left) to <b>' + G.cols + '</b> (right). Every sheet has its name in the corner.</li>' +
+      '<li><b>Cut each sheet along its dashed lines</b> ✂️ (the left and top edges; the last column and bottom row have a dashed line on the right/bottom too).</li>' +
+      '<li><b>Overlap and tape:</b> slide each sheet over the <b>gray strip</b> of the sheet to its left and the one above it, line the pictures up, and tape on the back. Tip: build each row first, then join the rows.</li>' +
+      '</ol></div></div>';
+    for (var rr = 0; rr < G.rows; rr++) for (var cc = 0; cc < G.cols; cc++) {
+      var lastC = cc === G.cols - 1, lastR = rr === G.rows - 1;
+      var fx = lastC ? 0 : FLAP, fy = lastR ? 0 : FLAP;
+      var tx = cc * G.tw, ty = rr * G.th, vw = G.tw + fx, vh = G.th + fy;
+      var sw = W / 1500;
+      var ov = "";
+      if (fx) ov += '<rect x="' + (tx + G.tw) + '" y="' + ty + '" width="' + fx + '" height="' + vh + '" fill="#888" fill-opacity=".28"/>' +
+        '<text transform="translate(' + (tx + G.tw + fx / 2 + 0.05) + ',' + (ty + vh / 2) + ') rotate(90)" font-size="0.13" text-anchor="middle" fill="#444" font-family="Fredoka, sans-serif">overlap: ' + rowName(rr) + (cc + 2) + ' goes on top</text>';
+      if (fy) ov += '<rect x="' + tx + '" y="' + (ty + G.th) + '" width="' + (fx ? G.tw : vw) + '" height="' + fy + '" fill="#888" fill-opacity=".28"/>' +
+        '<text x="' + (tx + G.tw / 2) + '" y="' + (ty + G.th + fy / 2 + 0.05) + '" font-size="0.13" text-anchor="middle" fill="#444" font-family="Fredoka, sans-serif">overlap: ' + rowName(rr + 1) + (cc + 1) + ' goes on top</text>';
+      var cut = 'stroke="#000" stroke-width="' + sw + '" stroke-dasharray="0.08 0.05"';
+      ov += '<line x1="' + tx + '" y1="' + ty + '" x2="' + tx + '" y2="' + (ty + vh) + '" ' + cut + '/>';
+      ov += '<line x1="' + tx + '" y1="' + ty + '" x2="' + (tx + vw) + '" y2="' + ty + '" ' + cut + '/>';
+      if (lastC) ov += '<line x1="' + (tx + G.tw) + '" y1="' + ty + '" x2="' + (tx + G.tw) + '" y2="' + (ty + vh) + '" ' + cut + '/>';
+      if (lastR) ov += '<line x1="' + tx + '" y1="' + (ty + G.th) + '" x2="' + (tx + vw) + '" y2="' + (ty + G.th) + '" ' + cut + '/>';
+      var name = rowName(rr) + (cc + 1);
+      var nb = [cc > 0 ? "⬅ " + rowName(rr) + cc : null, rr > 0 ? "⬆ " + rowName(rr - 1) + (cc + 1) : null, !lastC ? rowName(rr) + (cc + 2) + " ➡" : null, !lastR ? rowName(rr + 1) + (cc + 1) + " ⬇" : null].filter(Boolean).join("  ·  ");
+      html += '<div class="tile-page"><div class="tp-name">' + name + '</div>' +
+        '<div class="tp-head">MLB Playoffs ' + (opt.season || 2026) + ' wall bracket · sheet <b>' + name + '</b> (' + ((rr * G.cols) + cc + 1) + ' of ' + n + ') · row ' + rowName(rr) + ', column ' + (cc + 1) + '</div>' +
+        '<svg xmlns="' + NS + '" class="tp-svg" viewBox="' + tx + ' ' + ty + ' ' + vw + ' ' + vh + '" style="width:' + vw + 'in;height:' + vh + 'in;left:' + ((SHEET_W - (G.tw + FLAP)) / 2) + 'in">' +
+        '<rect x="' + tx + '" y="' + ty + '" width="' + vw + '" height="' + vh + '" fill="#fff"/>' + inner + ov + '</svg>' +
+        '<div class="tp-foot">✂️ Cut on the dashed lines. Gray strip = tape the next sheet over it. Neighbors: ' + nb + '</div></div>';
+    }
+    return { html: html, grid: G, sheets: n };
+  }
+
+  window.MLBPrint = { build: build, page2: page2, tiles: tiles, tileGrid: tileGrid };
 })();
