@@ -11,9 +11,12 @@
   function nm(res, t) { return t ? ((res.teams[t] && res.teams[t].short) || t) : ""; }
 
   /* ---- layouts: box positions in a fixed viewBox ---- */
-  function wideLayout() {
-    var W = 1200, H = 927, cw = { WC: 150, DS: 156, CS: 160, WS: 180 }, gap = 12;
-    var x = 14, L = {}, R = {};
+  // `aspect` = paper width / height. Wider-than-Letter paper (e.g. a 49x33in wall poster) stretches
+  // the whole bracket sideways (wider boxes + gaps) instead of leaving empty bands at the edges.
+  function wideLayout(aspect) {
+    var H = 927, W = Math.max(1200, Math.round(H * (aspect || 0))), k = W / 1200;
+    var cw = { WC: 150 * k, DS: 156 * k, CS: 160 * k, WS: 180 * k }, gap = 12 * k;
+    var x = 14 * k, L = {}, R = {};
     L.WC = x; x += cw.WC + gap; L.DS = x; x += cw.DS + gap; L.CS = x; x += cw.CS + gap;
     var wsx = x; x += cw.WS + gap;
     R.CS = x; x += cw.CS + gap; R.DS = x; x += cw.DS + gap; R.WC = x;
@@ -199,13 +202,13 @@
   /* ---- page 2: schedule by series, ballpark map, fun facts, mini quiz ---- */
   function page2(res, opt) {
     var tall = opt.layout === "tall";
-    var W = tall ? 927 : 1200, H = tall ? 1200 : 927;
+    var W = tall ? 927 : Math.max(1200, Math.round(927 * (opt.aspect || 0))), H = tall ? 1200 : 927, k = tall ? 1 : W / 1200;
     var svg = '<svg xmlns="' + NS + '" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet" font-family="Fredoka, Arial Rounded MT Bold, sans-serif">';
     svg += '<rect width="100%" height="100%" fill="#fff"/>';
     svg += '<text x="' + W / 2 + '" y="40" font-size="28" font-weight="700" text-anchor="middle" fill="#1c3563">📅 When, where &amp; what channel</text>';
     svg += '<text x="' + W / 2 + '" y="62" font-size="13" text-anchor="middle" fill="#555">Times shown in ' + esc(Intl.DateTimeFormat().resolvedOptions().timeZone.replace(/_/g, " ")) + '. * = only played if needed.</text>';
     // schedule: one block per series
-    var colW = tall ? W - 40 : 700, x0 = 20, y = 84;
+    var colW = tall ? W - 40 : 700 * k, x0 = 20, y = 84;
     var rows = M.SERIES.map(function (d) { return res.series[d.id]; });
     rows.forEach(function (s) {
       var R = s.round;
@@ -230,7 +233,7 @@
       y += bh + 5;
     });
     // right column (or bottom when tall): map + facts + quiz
-    var rx = tall ? 20 : 740, ry = tall ? y + 6 : 84, rw = tall ? W - 40 : W - 760;
+    var rx = tall ? 20 : 740 * k, ry = tall ? y + 6 : 84, rw = tall ? W - 40 : W - rx - 20;
     var MAP = window.MLBMAP;
     if (MAP) {
       var mw = tall ? rw * 0.5 : rw, mh = mw * MAP.H / MAP.W, sc = mw / MAP.W;
@@ -270,7 +273,7 @@
   }
 
   function build(res, opt) {
-    var Lo = opt.layout === "tall" ? tallLayout() : wideLayout();
+    var Lo = opt.layout === "tall" ? tallLayout() : wideLayout(opt.aspect);
     var B = Lo.box, sl = slots(res, opt.mode, opt.picks || {});
     var season = opt.season || 2026;
     var svg = '<svg xmlns="' + NS + '" viewBox="0 0 ' + Lo.W + ' ' + Lo.H + '" preserveAspectRatio="xMidYMid meet" font-family="Fredoka, Arial Rounded MT Bold, sans-serif">';

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Print a Bracket — MLB Playoffs 2026</title>
 <link rel="stylesheet" href="fonts/fredoka.css" />
+<style id="custom-style"></style>
 <style id="page-style">@page { size: letter landscape; margin: 0.3in; }</style>
 <style>
   * { box-sizing: border-box; }
@@ -42,7 +43,8 @@
 <body>
 <div class="bar">
   <a href="./?tab=bracket">⬅ Back</a>
-  <div class="group" id="size"><b>SIZE</b><button data-v="letter" class="on">📄 Letter</button><button data-v="poster">🖼️ Poster (any size)</button></div>
+  <div class="group" id="size"><b>SIZE</b><button data-v="letter" class="on">📄 Letter</button><button data-v="poster">🖼️ Poster (any size)</button><button data-v="custom">📐 Custom size</button>
+    <span id="custom-dims" style="display:none;align-items:center;gap:4px"><input id="cw" type="number" min="8" max="200" step="0.5" style="width:62px;font:inherit;border-radius:8px;border:none;padding:6px"> × <input id="ch" type="number" min="8" max="200" step="0.5" style="width:62px;font:inherit;border-radius:8px;border:none;padding:6px"> in</span></div>
   <div class="group" id="layout"><b>SHAPE</b><button data-v="wide" class="on">▭ Wide</button><button data-v="tall">▯ Tall</button></div>
   <div class="group" id="mode"><b>FILL</b><button data-v="blank" class="on">✏️ Blank to color in</button><button data-v="results">⚾ Real results so far</button><button data-v="picks">⭐ Someone's picks</button></div>
   <select id="player" style="display:none"></select>
@@ -51,18 +53,24 @@
   <div class="tip" id="tip"></div>
 </div>
 <div class="stage"><div class="sheet letter wide" id="sheet"></div><div class="sheet letter wide page2" id="sheet2"></div></div>
-<script src="mlb-data.js?v=20260928d"></script>
-<script src="mlb-espn.js?v=20260928d"></script>
-<script src="mlb-facts.js?v=20260928d"></script>
-<script src="mlb-map.js?v=20260928d"></script>
-<script src="print.js?v=20260928d"></script>
+<script src="mlb-data.js?v=20260928e"></script>
+<script src="mlb-espn.js?v=20260928e"></script>
+<script src="mlb-facts.js?v=20260928e"></script>
+<script src="mlb-map.js?v=20260928e"></script>
+<script src="print.js?v=20260928e"></script>
 <script>
 (function () {
-  var st = { size: "letter", layout: "wide", mode: "blank", player: null, extra: "yes" };
+  var st = { size: "letter", layout: "wide", mode: "blank", player: null, extra: "yes", w: 49, h: 33 };
+  var MARGIN = 0.5; // inches, custom size
   var feed = null, store = null;
   try { store = JSON.parse(localStorage.getItem("mlb26")); } catch (e) {}
   var qs = new URLSearchParams(location.search);
   ["size", "layout", "mode", "extra"].forEach(function (k) { if (qs.get(k)) st[k] = qs.get(k); });
+  if (+qs.get("w") > 0) st.w = +qs.get("w");
+  if (+qs.get("h") > 0) st.h = +qs.get("h");
+  var cwIn = document.getElementById("cw"), chIn = document.getElementById("ch");
+  cwIn.value = st.w; chIn.value = st.h;
+  cwIn.oninput = chIn.oninput = function () { if (+cwIn.value >= 8 && +chIn.value >= 8) { st.w = +cwIn.value; st.h = +chIn.value; render(); } };
 
   var sel = document.getElementById("player");
   if (store && store.players) {
@@ -86,10 +94,21 @@
     });
     sel.style.display = st.mode === "picks" ? "" : "none";
     // Letter: we fix the paper. Poster: we leave the paper size to the print dialog.
-    document.getElementById("page-style").textContent = st.size === "letter"
+    document.getElementById("custom-dims").style.display = st.size === "custom" ? "inline-flex" : "none";
+    var cW = st.w - 2 * MARGIN, cH = st.h - 2 * MARGIN;
+    // custom: the page IS the paper; the sheet fills it exactly and the layout takes its shape
+    document.getElementById("custom-style").textContent = st.size !== "custom" ? "" :
+      ".sheet.custom { width: min(96vw, 1400px); aspect-ratio: " + cW + " / " + cH + "; } " +
+      "@media print { .sheet.custom { width: " + cW + "in; height: " + (cH - 0.02) + "in; aspect-ratio: auto; } }";
+    var aspect = st.size === "custom" ? cW / cH : 0;
+    document.getElementById("page-style").textContent = st.size === "custom"
+      ? "@page { size: " + st.w + "in " + st.h + "in; margin: " + MARGIN + "in; }"
+      : st.size === "letter"
       ? "@page { size: letter " + (st.layout === "tall" ? "portrait" : "landscape") + "; margin: 0.3in; }"
       : "@page { margin: 0.4in; }";
-    document.getElementById("tip").innerHTML = st.size === "letter"
+    document.getElementById("tip").innerHTML = st.size === "custom"
+      ? "📐 Page is exactly <b>" + st.w + " × " + st.h + " in</b> (½-inch margins). Click Print, choose <b>Save as PDF</b>, leave Margins and Scale on <b>Default</b>, and send the PDF to your print shop. It's all vector lines and text, so it's sharp at any size."
+      : st.size === "letter"
       ? "📄 Prints on regular 8½×11 paper, " + (st.layout === "tall" ? "portrait" : "landscape") + ". Turn on <b>Background graphics</b> for team colors."
       : "🖼️ In the print preview, pick your <b>paper size</b> (or a custom size), set <b>Margins: Default</b> and <b>Scale: Default</b>, and choose " + (st.layout === "tall" ? "<b>Portrait</b>" : "<b>Landscape</b>") + ". The bracket is drawn with vector lines, so it stays sharp at any size. For a monster poster, <b>Save as PDF</b> and send that to a print shop.";
     var res = window.MLB.resolve(feed);
@@ -99,15 +118,16 @@
       : "Color in a ⚾ dot every time a team wins. Fill ALL your dots first, and you move on!";
     var sheet = document.getElementById("sheet");
     sheet.className = "sheet " + st.size + " " + st.layout;
-    sheet.innerHTML = window.MLBPrint.build(res, {
+    sheet.innerHTML = window.MLBPrint.build(res, { aspect: aspect,
       layout: st.layout, mode: st.mode, picks: picks, season: (feed && feed.season) || 2026, subtitle: subtitle,
       footer: st.mode === "results" && feed && feed.updated ? "Results as of " + new Date(feed.updated).toLocaleString("en-US") + " · " + here : here,
     });
     var s2 = document.getElementById("sheet2");
     s2.className = "sheet " + st.size + " " + st.layout + " page2";
     s2.style.display = st.extra === "yes" ? "" : "none";
-    if (st.extra === "yes") s2.innerHTML = window.MLBPrint.page2(res, { layout: st.layout, mode: st.mode });
+    if (st.extra === "yes") s2.innerHTML = window.MLBPrint.page2(res, { layout: st.layout, mode: st.mode, aspect: aspect });
     var u = new URL(location.href); u.searchParams.set("extra", st.extra); u.searchParams.set("size", st.size); u.searchParams.set("layout", st.layout); u.searchParams.set("mode", st.mode);
+    if (st.size === "custom") { u.searchParams.set("w", st.w); u.searchParams.set("h", st.h); } else { u.searchParams.delete("w"); u.searchParams.delete("h"); }
     history.replaceState(null, "", u);
   }
   render();
