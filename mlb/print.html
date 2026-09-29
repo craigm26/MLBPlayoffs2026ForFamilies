@@ -51,11 +51,11 @@
   <div class="tip" id="tip"></div>
 </div>
 <div class="stage"><div class="sheet letter wide" id="sheet"></div><div class="sheet letter wide page2" id="sheet2"></div></div>
-<script src="mlb-data.js?v=20260928c"></script>
-<script src="mlb-espn.js?v=20260928c"></script>
-<script src="mlb-facts.js?v=20260928c"></script>
-<script src="mlb-map.js?v=20260928c"></script>
-<script src="print.js?v=20260928c"></script>
+<script src="mlb-data.js?v=20260928d"></script>
+<script src="mlb-espn.js?v=20260928d"></script>
+<script src="mlb-facts.js?v=20260928d"></script>
+<script src="mlb-map.js?v=20260928d"></script>
+<script src="print.js?v=20260928d"></script>
 <script>
 (function () {
   var st = { size: "letter", layout: "wide", mode: "blank", player: null, extra: "yes" };
@@ -79,6 +79,7 @@
     });
   });
 
+  var here = location.host + location.pathname.replace(/print\.html$/, "");
   function render() {
     ["size", "layout", "mode", "extra"].forEach(function (k) {
       document.getElementById(k).querySelectorAll("button").forEach(function (b) { b.classList.toggle("on", b.dataset.v === st[k]); });
@@ -100,7 +101,7 @@
     sheet.className = "sheet " + st.size + " " + st.layout;
     sheet.innerHTML = window.MLBPrint.build(res, {
       layout: st.layout, mode: st.mode, picks: picks, season: (feed && feed.season) || 2026, subtitle: subtitle,
-      footer: st.mode === "results" && feed && feed.updated ? "Results as of " + new Date(feed.updated).toLocaleString("en-US") + " · pi-nas.local/mlb" : "pi-nas.local/mlb",
+      footer: st.mode === "results" && feed && feed.updated ? "Results as of " + new Date(feed.updated).toLocaleString("en-US") + " · " + here : here,
     });
     var s2 = document.getElementById("sheet2");
     s2.className = "sheet " + st.size + " " + st.layout + " page2";

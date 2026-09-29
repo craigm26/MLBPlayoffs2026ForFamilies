@@ -57,12 +57,14 @@ function useStore() {
 
 /* ---------- small pieces ---------- */
 function Logo({ t, res, size = 40, dim, style }) {
+  const src = t ? window.MLB.logoUrl(res, t) : null;
   const [bad, setBad] = useState(false);
+  useEffect(() => { setBad(false); }, [src]);
   const team = (t && res.teams[t]) || {};
   const base = { width: size, height: size, borderRadius: "50%", flex: "none", display: "grid", placeItems: "center", opacity: dim ? 0.35 : 1, filter: dim ? "grayscale(1)" : "none", ...style };
   if (!t) return <div style={{ ...base, background: "rgba(255,255,255,.08)", border: "2px dashed rgba(255,255,255,.3)", color: C.faint, fontSize: size * 0.45, fontWeight: 700 }}>?</div>;
-  if (bad) return <div style={{ ...base, background: team.color || "#345", color: "#fff", fontWeight: 700, fontSize: size * 0.3, border: "2px solid " + (team.alt || "#fff") }}>{t}</div>;
-  return <div style={{ ...base, background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,.35)" }}><img src={window.MLB.logoUrl(res, t)} alt={team.short || t} onError={() => setBad(true)} style={{ width: "78%", height: "78%", objectFit: "contain" }} /></div>;
+  if (bad || !src) return <div style={{ ...base, background: team.color || "#345", color: "#fff", fontWeight: 700, fontSize: size * 0.3, border: "2px solid " + (team.alt || "#fff") }}>{t}</div>;
+  return <div style={{ ...base, background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,.35)" }}><img src={src} alt={team.short || t} onError={() => setBad(true)} style={{ width: "78%", height: "78%", objectFit: "contain" }} /></div>;
 }
 
 function nameOf(res, t) { return t ? ((res.teams[t] && res.teams[t].short) || t) : "?"; }
@@ -715,7 +717,7 @@ function App() {
       <footer style={{ padding: "7px 24px", borderTop: "1px solid " + C.line, fontSize: 12, color: C.faint, display: "flex", gap: 12, justifyContent: "space-between", flexWrap: "wrap" }}>
         {!isPhone && <span>📺 ← → or keys 1–8 switch tabs</span>}
         <span>Scores from ESPN{feed && feed.updated ? " · updated " + new Date(feed.updated).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : ""}</span>
-        {!isPhone && <span>pi-nas.local/mlb</span>}
+        {!isPhone && <span>{location.host + location.pathname.replace(/index\.html$/, "")}</span>}
       </footer>
     </div>
   );

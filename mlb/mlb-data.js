@@ -140,7 +140,7 @@
     SERIES.forEach(function (d) { var s = out[d.id]; if (s.loser) alive[s.loser] = false; });
     // GitHub Pages has no logos/ folder (team marks aren't ours to redistribute): use ESPN's CDN there.
     return { series: out, seeds: seeds, teams: teamsOf(feed), records: recordsOf(feed), champion: out.WS.winner, alive: alive, seedOf: seedOf,
-      logoCDN: !!(feed && feed.source === "espn-browser") };
+      logoCDN: !!(feed && feed.source === "espn-browser"), pending: !feed };
   }
 
   // Who could still show up in an empty slot ("Yankees or Red Sox").
@@ -288,6 +288,7 @@
 
   function logoUrl(res, t) {
     var tm = res && res.teams && res.teams[t];
+    if (res && res.pending) return null;   // don't guess local vs CDN before the feed says which
     return res && res.logoCDN && tm && tm.logo ? tm.logo : "logos/" + t + ".png";
   }
 

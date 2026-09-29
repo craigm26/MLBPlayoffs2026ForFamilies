@@ -208,7 +208,7 @@ function MapTab({ res, feed, isPhone, openTeam }) {
             return (
               <g key={t} onClick={() => setSel(t)} style={{ cursor: "pointer" }} opacity={out ? 0.4 : 1}>
                 <circle cx={p.x} cy={p.y} r={sel === t ? 26 : 21} fill="#fff" stroke={sel === t ? C.gold : (res.teams[t] || {}).color || "#333"} strokeWidth="4" />
-                <image href={window.MLB.logoUrl(res, t)} x={p.x - 15} y={p.y - 15} width="30" height="30" />
+                {window.MLB.logoUrl(res, t) ? <image href={window.MLB.logoUrl(res, t)} x={p.x - 15} y={p.y - 15} width="30" height="30" /> : <text x={p.x} y={p.y + 5} textAnchor="middle" fontSize="12" fontWeight="700" fill="#16235a">{t}</text>}
               </g>
             );
           })}

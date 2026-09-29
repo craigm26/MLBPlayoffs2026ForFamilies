@@ -265,7 +265,7 @@
         svg += '<text x="' + fx + '" y="' + (ly + 6) + '" font-size="9.5" fill="#888">Answers: ' + esc(ans.join("   ")) + '</text>';
       }
     }
-    svg += '<text x="' + W / 2 + '" y="' + (H - 12) + '" font-size="11" text-anchor="middle" fill="#888">pi-nas.local/mlb</text>';
+    svg += '<text x="' + W / 2 + '" y="' + (H - 12) + '" font-size="11" text-anchor="middle" fill="#888">' + esc(location.host + location.pathname.replace(/print\.html$/, "")) + '</text>';
     return svg + '</svg>';
   }
 
