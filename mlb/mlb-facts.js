@@ -1,0 +1,123 @@
+/* Fun facts + quiz for the MLB Playoffs family hub. Plain JS (window.MLBFACTS / module.exports).
+   Keep every fact checkable — kids repeat these at school. */
+(function (root) {
+  "use strict";
+
+  // Three "Did you know?" facts per club (the 2026 field, plus a few for the 2025 demo feed).
+  var TEAM = {
+    TB: ["The team started in 1998 as the Tampa Bay Devil Rays, and became just the Rays in 2008.",
+      "\"Rays\" means two things: the sea creatures in Tampa Bay AND rays of Florida sunshine! ☀️",
+      "They played in the World Series in 2008 and 2020, and are still hunting for their first title."],
+    CLE: ["They were called the Indians until 2021 and became the Guardians in 2022.",
+      "The name comes from the \"Guardians of Traffic\", giant stone statues on a bridge near their ballpark. 🗿",
+      "Cleveland last won the World Series in 1948, a long, long wait!"],
+    HOU: ["Houston is home to NASA's Mission Control, so the team is named after astronauts! 🚀",
+      "In 1965 they moved into the Astrodome, the first ballpark with a roof. Fake grass called AstroTurf was named after it.",
+      "The Astros won the World Series in 2017 and 2022."],
+    NYY: ["The Yankees have won 27 World Series, more than any other team! 🏆",
+      "Babe Ruth, Lou Gehrig, Joe DiMaggio, Mickey Mantle and Derek Jeter all played for them.",
+      "Yankees jerseys don't have players' names on the back, just numbers."],
+    BOS: ["Fenway Park opened in 1912. It's the oldest ballpark in the major leagues!",
+      "Left field has a giant 37-foot-tall green wall called the Green Monster. 👹",
+      "In 2004 the Red Sox won the World Series for the first time in 86 years."],
+    CHW: ["Chicago has TWO teams: the White Sox on the South Side and the Cubs on the North Side.",
+      "The name goes back to the white stockings the players wore long ago. 🧦",
+      "The White Sox won the World Series in 2005."],
+    MIL: ["During home games, people in giant sausage costumes run a race around the field: the Racing Sausages! 🌭",
+      "Milwaukee is famous for brewing, which is how the Brewers got their name.",
+      "Their logo is a baseball glove hiding the letters \"m\" and \"b\". Can you spot them?"],
+    LAD: ["The Dodgers started in Brooklyn, New York, and moved to Los Angeles in 1958.",
+      "In 1947 Jackie Robinson joined the Brooklyn Dodgers and became the first Black player in modern Major League Baseball.",
+      "The name comes from Brooklyn fans who had to dodge trolley cars in the street! 🚋"],
+    ATL: ["The Braves started in Boston in 1871. They're the oldest team that has played every season since!",
+      "In 1974 Hank Aaron of the Braves hit his 715th home run and broke Babe Ruth's record.",
+      "The Braves won the World Series in 2021."],
+    SD: ["\"Padres\" is Spanish for \"fathers\", named after the Spanish mission priests who founded San Diego.",
+      "Their mascot is the Swinging Friar, a monk who swings a bat. ⚾",
+      "The Padres are still chasing their very first World Series title."],
+    CHC: ["Wrigley Field has ivy plants growing all over its outfield walls! 🌿",
+      "In 2016 the Cubs won the World Series after waiting 108 years.",
+      "Wrigley's big scoreboard is still changed by hand, by people working inside it."],
+    PHI: ["Their fuzzy green mascot is the Phillie Phanatic! 💚",
+      "The Phillies have used the same city and the same name since 1883, the longest of any pro sports team.",
+      "They won the World Series in 1980 and 2008."],
+    TOR: ["The Blue Jays are the only major league team in Canada. 🇨🇦",
+      "Their ballpark has a giant roof that can open and close.",
+      "They won the World Series in 1992 and 1993."],
+    SEA: ["The Mariners are the only team that has never played in a World Series.",
+      "Their ballpark, T-Mobile Park, has a roof that rolls over the field on rainy days. ☔",
+      "Seattle is the farthest-north city in the major leagues."],
+    DET: ["Comerica Park has giant tiger statues all around it. 🐯",
+      "The Tigers won the World Series in 1935, 1945, 1968 and 1984.",
+      "Detroit was one of the very first American League teams, back in 1901."],
+    CIN: ["Cincinnati had the very first all-professional baseball team, back in 1869.",
+      "The Reds won back-to-back World Series in 1975 and 1976 as \"the Big Red Machine\".",
+      "Their mascot, Mr. Redlegs, has a giant baseball for a head!"],
+  };
+
+  var FACTS = [
+    { e: "⚾", t: "A baseball has 108 double stitches, all sewn by hand with red thread." },
+    { e: "📏", t: "The bases are 90 feet apart. That's about as long as 3 school buses!" },
+    { e: "🎯", t: "The pitcher stands 60 feet, 6 inches from home plate." },
+    { e: "🏠", t: "Home plate has 5 sides. It's a pentagon!" },
+    { e: "🎵", t: "Fans sing \"Take Me Out to the Ball Game\" (written in 1908) during the 7th-inning stretch." },
+    { e: "📜", t: "The first World Series was played in 1903. Boston beat Pittsburgh." },
+    { e: "4️⃣2️⃣", t: "Every team retired #42 for Jackie Robinson. On April 15, every player wears 42!" },
+    { e: "😮", t: "Only one perfect game has ever happened in a World Series: Don Larsen of the Yankees, in 1956." },
+    { e: "⏱️", t: "The longest World Series game went 18 innings: Dodgers vs. Red Sox, Game 3 in 2018." },
+    { e: "⏰", t: "Since 2023 there's a pitch clock. Pitchers have just 15 seconds to throw when nobody is on base." },
+    { e: "🎟️", t: "Since 2022, 12 teams make the playoffs: 6 from each league." },
+    { e: "💥", t: "A grand slam is a home run with the bases loaded. That's 4 runs in one swing!" },
+    { e: "🧢", t: "When their team needs a comeback, fans wear their caps inside-out. It's called a rally cap!" },
+    { e: "🟫", t: "Before every game, new baseballs are rubbed with special mud from New Jersey so they're less slippery." },
+    { e: "🏆", t: "The World Series trophy has 30 flags on it, one for every team." },
+    { e: "🚀", t: "The fastest pitchers can throw over 100 miles per hour, faster than cars on the highway!" },
+    { e: "👋", t: "A walk-off is when the home team scores the winning run in the last inning. Game over, everybody walks off the field!" },
+    { e: "🧤", t: "A \"double play\" is when the fielders get 2 outs on one play." },
+  ];
+
+  // q, choices, answer index, why (shown after answering)
+  var QUIZ = [
+    { q: "In a best-of-5 series, how many wins do you need?", c: ["2", "3", "5"], a: 1, why: "Best of 5 means first to 3 wins!" },
+    { q: "In a best-of-7 series, how many wins do you need?", c: ["4", "5", "7"], a: 0, why: "First to 4 wins takes a best-of-7." },
+    { q: "Which playoff round is best of 3?", c: ["World Series", "Wild Card Series", "Division Series"], a: 1, why: "The Wild Card Series is short: first to 2 wins." },
+    { q: "Which teams get to skip the first round?", c: ["The top 2 in each league", "The 2 oldest teams", "Nobody"], a: 0, why: "The #1 and #2 seeds rest while the Wild Card Series is played." },
+    { q: "How many teams make the playoffs?", c: ["8", "12", "30"], a: 1, why: "6 from the American League and 6 from the National League." },
+    { q: "How many strikes make an out?", c: ["2", "3", "4"], a: 1, why: "Strike 3, you're out!" },
+    { q: "How many balls make a walk?", c: ["3", "4", "5"], a: 1, why: "Ball 4 and the batter walks to first base." },
+    { q: "How many outs does each team get per inning?", c: ["3", "6", "9"], a: 0, why: "3 outs, then the teams switch." },
+    { q: "How many innings are in a regular game?", c: ["7", "9", "10"], a: 1, why: "9 innings. If it's tied, they play extra innings!" },
+    { q: "How far apart are the bases?", c: ["60 feet", "90 feet", "120 feet"], a: 1, why: "90 feet, about 3 school buses." },
+    { q: "How many sides does home plate have?", c: ["4", "5", "6"], a: 1, why: "It's a pentagon!" },
+    { q: "How many runs does a grand slam score?", c: ["1", "3", "4"], a: 2, why: "Bases loaded + home run = 4 runs." },
+    { q: "Which team has a giant wall called the Green Monster?", c: ["Red Sox", "Cubs", "Padres"], a: 0, why: "It's in left field at Fenway Park in Boston." },
+    { q: "Which ballpark has ivy growing on the walls?", c: ["Yankee Stadium", "Wrigley Field", "Fenway Park"], a: 1, why: "The Cubs' Wrigley Field!" },
+    { q: "What color is the Phillie Phanatic?", c: ["Blue", "Green", "Orange"], a: 1, why: "The Phanatic is big, fuzzy and green." },
+    { q: "Which team has won the most World Series?", c: ["Dodgers", "Yankees", "Braves"], a: 1, why: "The Yankees have 27 titles." },
+    { q: "Where do the Racing Sausages race?", c: ["Milwaukee", "Houston", "Atlanta"], a: 0, why: "At Brewers home games!" },
+    { q: "Which team is named after astronauts?", c: ["Rays", "Astros", "Guardians"], a: 1, why: "Houston is home to NASA's Mission Control." },
+    { q: "Which team started out in Brooklyn?", c: ["Dodgers", "Yankees", "Phillies"], a: 0, why: "The Dodgers moved to Los Angeles in 1958." },
+    { q: "Hank Aaron broke Babe Ruth's home run record playing for which team?", c: ["Braves", "Brewers", "Cubs"], a: 0, why: "His 715th home run came in 1974 for the Braves." },
+    { q: "What does \"Padres\" mean in Spanish?", c: ["Friends", "Fathers", "Fishermen"], a: 1, why: "It honors the mission priests who founded San Diego." },
+    { q: "The Guardians are named after…", c: ["A superhero", "Statues on a bridge", "A dog"], a: 1, why: "The \"Guardians of Traffic\" statues in Cleveland." },
+    { q: "What inning is the \"stretch\" when everyone sings?", c: ["5th", "7th", "9th"], a: 1, why: "The 7th-inning stretch!" },
+    { q: "What does ERA measure?", c: ["How fast a pitcher throws", "Runs a pitcher allows", "How many hits a batter gets"], a: 1, why: "Earned Run Average: runs allowed every 9 innings. Lower is better!" },
+    { q: "What's a walk-off?", c: ["A long walk to the dugout", "The home team scoring to win in the last inning", "When a pitcher gets tired"], a: 1, why: "The game ends right away, so everyone walks off!" },
+    { q: "Whose number, 42, is retired by every team?", c: ["Babe Ruth", "Jackie Robinson", "Hank Aaron"], a: 1, why: "Jackie Robinson broke baseball's color barrier in 1947." },
+  ];
+
+  var STAT_HELP = {
+    homeRuns: "Balls hit over the fence. 💥",
+    avg: "How often batters get a hit. .250 means 1 hit every 4 tries.",
+    runs: "Times the team's players crossed home plate.",
+    stolenBases: "Sneaking to the next base while the pitcher throws. 🏃",
+    ERA: "Runs the pitchers allow every 9 innings. LOWER is better!",
+    strikeouts: "Batters the pitchers struck out. ✋",
+    saves: "Close wins protected by the closer at the very end.",
+    errors: "Fielding mistakes. LOWER is better!",
+  };
+
+  var API = { TEAM: TEAM, FACTS: FACTS, QUIZ: QUIZ, STAT_HELP: STAT_HELP };
+  if (typeof module !== "undefined" && module.exports) module.exports = API;
+  else root.MLBFACTS = API;
+})(typeof window !== "undefined" ? window : this);

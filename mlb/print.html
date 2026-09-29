@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Print a Bracket — MLB Playoffs 2026</title>
+<link rel="stylesheet" href="fonts/fredoka.css" />
+<style id="page-style">@page { size: letter landscape; margin: 0.3in; }</style>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Fredoka', sans-serif; background: #0f2240; color: #fff; }
+  .bar { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; padding: 14px 20px; background: #163766; position: sticky; top: 0; z-index: 2; }
+  .bar a { color: #f4b740; text-decoration: none; font-weight: 600; }
+  .group { display: flex; gap: 6px; align-items: center; background: rgba(255,255,255,.08); border-radius: 12px; padding: 5px 8px; }
+  .group b { font-size: 13px; color: #9fb0d8; margin-right: 4px; }
+  .group button, .go { border: none; border-radius: 9px; padding: 8px 12px; font: inherit; font-size: 15px; cursor: pointer; background: rgba(255,255,255,.12); color: #fff; }
+  .group button.on { background: #f4b740; color: #0e1f3d; font-weight: 700; }
+  select { font: inherit; font-size: 15px; border-radius: 9px; padding: 6px 8px; }
+  .go { background: #34c77b; color: #0e1f3d; font-weight: 700; font-size: 17px; padding: 10px 18px; margin-left: auto; }
+  .page2 { margin-top: 24px; }
+  .tip { width: 100%; font-size: 13.5px; color: #cdd9ff; }
+  .stage { padding: 20px; display: grid; place-items: center; }
+  .sheet { background: #fff; box-shadow: 0 6px 30px rgba(0,0,0,.5); }
+  .sheet svg { display: block; width: 100%; height: 100%; }
+  .sheet.letter.wide { width: min(96vw, 1100px); aspect-ratio: 11 / 8.5; }
+  .sheet.letter.tall { width: min(70vw, 720px); aspect-ratio: 8.5 / 11; }
+  .sheet.poster.wide { width: min(96vw, 1200px); aspect-ratio: 1200 / 927; }
+  .sheet.poster.tall { width: min(70vw, 760px); aspect-ratio: 927 / 1200; }
+  @media print {
+    body { background: #fff; }
+    .bar { display: none; }
+    .stage { padding: 0; display: block; }
+    .page2 { margin-top: 0; break-before: page; page-break-before: always; }
+    .sheet { box-shadow: none; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .sheet.letter.wide { width: 10.4in; height: 7.9in; aspect-ratio: auto; }
+    .sheet.letter.tall { width: 7.9in; height: 10.4in; aspect-ratio: auto; }
+    /* poster: fill whatever paper you chose in the print dialog */
+    .sheet.poster.wide, .sheet.poster.tall { width: 100%; height: 97vh; aspect-ratio: auto; }
+  }
+</style>
+</head>
+<body>
+<div class="bar">
+  <a href="./?tab=bracket">⬅ Back</a>
+  <div class="group" id="size"><b>SIZE</b><button data-v="letter" class="on">📄 Letter</button><button data-v="poster">🖼️ Poster (any size)</button></div>
+  <div class="group" id="layout"><b>SHAPE</b><button data-v="wide" class="on">▭ Wide</button><button data-v="tall">▯ Tall</button></div>
+  <div class="group" id="mode"><b>FILL</b><button data-v="blank" class="on">✏️ Blank to color in</button><button data-v="results">⚾ Real results so far</button><button data-v="picks">⭐ Someone's picks</button></div>
+  <select id="player" style="display:none"></select>
+  <div class="group" id="extra"><b>PAGE 2</b><button data-v="yes" class="on">📋 Schedule, map &amp; facts</button><button data-v="no">None</button></div>
+  <button class="go" onclick="window.print()">🖨️ Print</button>
+  <div class="tip" id="tip"></div>
+</div>
+<div class="stage"><div class="sheet letter wide" id="sheet"></div><div class="sheet letter wide page2" id="sheet2"></div></div>
+<script src="mlb-data.js?v=20260928c"></script>
+<script src="mlb-espn.js?v=20260928c"></script>
+<script src="mlb-facts.js?v=20260928c"></script>
+<script src="mlb-map.js?v=20260928c"></script>
+<script src="print.js?v=20260928c"></script>
+<script>
+(function () {
+  var st = { size: "letter", layout: "wide", mode: "blank", player: null, extra: "yes" };
+  var feed = null, store = null;
+  try { store = JSON.parse(localStorage.getItem("mlb26")); } catch (e) {}
+  var qs = new URLSearchParams(location.search);
+  ["size", "layout", "mode", "extra"].forEach(function (k) { if (qs.get(k)) st[k] = qs.get(k); });
+
+  var sel = document.getElementById("player");
+  if (store && store.players) {
+    store.players.forEach(function (p) { var o = document.createElement("option"); o.value = p.id; o.textContent = p.emoji + " " + p.name; sel.appendChild(o); });
+    st.player = store.active || (store.players[0] && store.players[0].id);
+    sel.value = st.player;
+  }
+  sel.onchange = function () { st.player = sel.value; render(); };
+
+  ["size", "layout", "mode", "extra"].forEach(function (k) {
+    var g = document.getElementById(k);
+    g.querySelectorAll("button").forEach(function (b) {
+      b.onclick = function () { st[k] = b.dataset.v; render(); };
+    });
+  });
+
+  function render() {
+    ["size", "layout", "mode", "extra"].forEach(function (k) {
+      document.getElementById(k).querySelectorAll("button").forEach(function (b) { b.classList.toggle("on", b.dataset.v === st[k]); });
+    });
+    sel.style.display = st.mode === "picks" ? "" : "none";
+    // Letter: we fix the paper. Poster: we leave the paper size to the print dialog.
+    document.getElementById("page-style").textContent = st.size === "letter"
+      ? "@page { size: letter " + (st.layout === "tall" ? "portrait" : "landscape") + "; margin: 0.3in; }"
+      : "@page { margin: 0.4in; }";
+    document.getElementById("tip").innerHTML = st.size === "letter"
+      ? "📄 Prints on regular 8½×11 paper, " + (st.layout === "tall" ? "portrait" : "landscape") + ". Turn on <b>Background graphics</b> for team colors."
+      : "🖼️ In the print preview, pick your <b>paper size</b> (or a custom size), set <b>Margins: Default</b> and <b>Scale: Default</b>, and choose " + (st.layout === "tall" ? "<b>Portrait</b>" : "<b>Landscape</b>") + ". The bracket is drawn with vector lines, so it stays sharp at any size. For a monster poster, <b>Save as PDF</b> and send that to a print shop.";
+    var res = window.MLB.resolve(feed);
+    var picks = (store && store.picks && st.player && store.picks[st.player]) || {};
+    var who = store && store.players && store.players.filter(function (p) { return p.id === st.player; })[0];
+    var subtitle = st.mode === "picks" ? (who ? who.emoji + " " + who.name + "'s picks · ★ = picked to win" : "Your picks")
+      : "Color in a ⚾ dot every time a team wins. Fill ALL your dots first, and you move on!";
+    var sheet = document.getElementById("sheet");
+    sheet.className = "sheet " + st.size + " " + st.layout;
+    sheet.innerHTML = window.MLBPrint.build(res, {
+      layout: st.layout, mode: st.mode, picks: picks, season: (feed && feed.season) || 2026, subtitle: subtitle,
+      footer: st.mode === "results" && feed && feed.updated ? "Results as of " + new Date(feed.updated).toLocaleString("en-US") + " · pi-nas.local/mlb" : "pi-nas.local/mlb",
+    });
+    var s2 = document.getElementById("sheet2");
+    s2.className = "sheet " + st.size + " " + st.layout + " page2";
+    s2.style.display = st.extra === "yes" ? "" : "none";
+    if (st.extra === "yes") s2.innerHTML = window.MLBPrint.page2(res, { layout: st.layout, mode: st.mode });
+    var u = new URL(location.href); u.searchParams.set("extra", st.extra); u.searchParams.set("size", st.size); u.searchParams.set("layout", st.layout); u.searchParams.set("mode", st.mode);
+    history.replaceState(null, "", u);
+  }
+  render();
+  var feedUrl = /^[\w\-\/]+\.json$/.test(qs.get("feed") || "") ? qs.get("feed") : "live.json";
+  fetch(feedUrl, { cache: "no-store" }).then(function (r) { if (!r.ok) throw r.status; return r.json(); })
+    .catch(function () { return window.MLBESPN.buildFeed(2026); })
+    .then(function (d) { if (d) { feed = d; window.__FEED = d; render(); } }).catch(function () {});
+})();
+</script>
+</body>
+</html>

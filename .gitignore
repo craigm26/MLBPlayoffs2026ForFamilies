@@ -1,0 +1,5 @@
+mlb/live.json
+mlb/logos/
+mlb/tests/logos/
+__pycache__/
+*.tmp

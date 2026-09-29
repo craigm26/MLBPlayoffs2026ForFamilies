@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>MLB Playoffs 2026 — Family Hub</title>
+<meta name="theme-color" content="#0f2240" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚾</text></svg>" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Playoffs" />
+<link rel="stylesheet" href="fonts/fredoka.css" />
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: 'Fredoka', sans-serif; overflow-x: hidden; color: #fff;
+    background: radial-gradient(circle at 15% 0%, #24508f 0%, #163766 40%, #0f2240 75%, #0a1830 100%); background-attachment: fixed; }
+  button, input, select { font-family: inherit; }
+  .tabstrip { scrollbar-width: none; } .tabstrip::-webkit-scrollbar { display: none; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; } ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.2); border-radius: 10px; }
+  @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .25 } }
+  .live-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #e2473b; box-shadow: 0 0 6px #e2473b; animation: pulse 1.1s ease-in-out infinite; flex: none; }
+  @keyframes pop { from { opacity: 0; transform: translateY(6px) scale(.98) } to { opacity: 1; transform: none } }
+  .pop { animation: pop .45s ease-out both; }
+  @media (prefers-reduced-motion: reduce) { .live-dot, .pop { animation: none } }
+  #boot { display: grid; place-items: center; height: 100vh; font-size: 22px; color: #9fb0d8; }
+</style>
+</head>
+<body>
+<div id="app"><div id="boot">⚾ Warming up…</div></div>
+<script src="vendor/react.development.js"></script>
+<script src="vendor/react-dom.development.js"></script>
+<script src="vendor/babel.min.js"></script>
+<script src="mlb-data.js?v=20260928c"></script>
+<script src="mlb-espn.js?v=20260928c"></script>
+<script src="mlb-facts.js?v=20260928c"></script>
+<script src="mlb-map.js?v=20260928c"></script>
+<script src="mlb-teamdata.js?v=20260928c"></script>
+<script type="text/babel" src="app-more.jsx?v=20260928c"></script>
+<script type="text/babel" src="app.jsx?v=20260928c"></script>
+</body>
+</html>
