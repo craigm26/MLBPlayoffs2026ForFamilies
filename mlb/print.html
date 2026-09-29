@@ -28,7 +28,9 @@
   .sheet.poster.wide { width: min(96vw, 1200px); aspect-ratio: 1200 / 927; }
   .sheet.poster.tall { width: min(70vw, 760px); aspect-ratio: 927 / 1200; }
   @media print {
-    body { background: #fff; }
+    /* the pi-nas Family Bar (nav.js) injects itself into every page; keep it off the paper */
+    body > *:not(.stage):not(script):not(style) { display: none !important; }
+    html, body { background: #fff; padding: 0 !important; margin: 0 !important; }
     .bar { display: none; }
     .stage { padding: 0; display: block; }
     .page2 { margin-top: 0; break-before: page; page-break-before: always; }
