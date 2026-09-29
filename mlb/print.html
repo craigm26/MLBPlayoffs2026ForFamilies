@@ -21,10 +21,10 @@
   .page2 { margin-top: 24px; }
   /* tiled poster sheets (landscape Letter, printed edge-to-edge at 100%) */
   .tile-page { position: relative; width: 11in; height: 8.5in; background: #fff; color: #111; margin: 0 auto 24px; box-shadow: 0 6px 30px rgba(0,0,0,.5); overflow: hidden; font-family: 'Fredoka', sans-serif; }
-  .tp-svg { position: absolute; top: 0.55in; display: block; }
-  .tp-head { position: absolute; top: 0.28in; left: 0.6in; right: 1.6in; font-size: 10pt; color: #444; }
-  .tp-name { position: absolute; top: 0.18in; right: 0.45in; font-size: 22pt; font-weight: 700; color: #d33; }
-  .tp-foot { position: absolute; bottom: 0.35in; left: 0.6in; right: 0.6in; font-size: 9.5pt; color: #444; }
+  .tp-svg { position: absolute; display: block; }
+  .tp-head { position: absolute; top: 0.25in; left: 0.45in; right: 1.1in; font-size: 9pt; color: #444; }
+  .tp-name { position: absolute; top: 0.1in; right: 0.4in; font-size: 20pt; font-weight: 700; color: #d33; }
+  .tp-foot { position: absolute; bottom: 0.3in; left: 0.45in; right: 0.45in; font-size: 8.5pt; color: #444; }
   .guide .tp-in { padding: 0.45in 0.6in; }
   .tp-title { font-size: 18pt; font-weight: 700; color: #1c3563; text-align: center; }
   .tp-steps { font-size: 11pt; line-height: 1.4; margin: 0.08in 0 0; padding-left: 0.3in; }
@@ -66,11 +66,11 @@
   <div class="tip" id="tip"></div>
 </div>
 <div class="stage"><div id="tiles" style="display:none"></div><div class="sheet letter wide" id="sheet"></div><div class="sheet letter wide page2" id="sheet2"></div></div>
-<script src="mlb-data.js?v=20260929a"></script>
-<script src="mlb-espn.js?v=20260929a"></script>
-<script src="mlb-facts.js?v=20260929a"></script>
-<script src="mlb-map.js?v=20260929a"></script>
-<script src="print.js?v=20260929a"></script>
+<script src="mlb-data.js?v=20260929c"></script>
+<script src="mlb-espn.js?v=20260929c"></script>
+<script src="mlb-facts.js?v=20260929c"></script>
+<script src="mlb-map.js?v=20260929c"></script>
+<script src="print.js?v=20260929c"></script>
 <script>
 (function () {
   var st = { size: "letter", layout: "wide", mode: "blank", player: null, extra: "yes", w: 49, h: 33 };
@@ -115,19 +115,20 @@
     // custom: the page IS the paper; the sheet fills it exactly and the layout takes its shape
     document.getElementById("custom-style").textContent = !big ? "" :
       ".sheet.custom { width: min(96vw, 1400px); aspect-ratio: " + cW + " / " + cH + "; } " +
-      ".sheet.tiles.page2 { width: min(96vw, 1100px); aspect-ratio: 11 / 8.5; } @media print { .sheet.tiles.page2 { width: 10.4in; height: 7.9in; margin: 0.3in auto 0; aspect-ratio: auto; } } " +
+      ".sheet.tiles.page2.wide { width: min(96vw, 1100px); aspect-ratio: 11 / 8.5; } @media print { .sheet.tiles.page2.wide { width: 10.4in; height: 7.9in; margin: 0.3in auto 0; aspect-ratio: auto; } } " +
+      ".sheet.tiles.page2.tall { width: min(70vw, 760px); aspect-ratio: 8.5 / 11; } @media print { .sheet.tiles.page2.tall { width: 7.9in; height: 10.4in; margin: 0.3in auto 0; aspect-ratio: auto; } } " +
       "@media print { .sheet.custom { width: " + cW + "in; height: " + (cH - 0.02) + "in; aspect-ratio: auto; } }";
     var aspect = st.size === "custom" ? cW / cH : 0;   // tiles: the tiler sets its own; its page 2 is plain Letter
+    var TG = window.MLBPrint.tileGrid(st.w, st.h), tOrient = TG.orient || "landscape";
     document.getElementById("page-style").textContent = st.size === "tiles"
-      ? "@page { size: letter landscape; margin: 0; }"
+      ? "@page { size: letter " + tOrient + "; margin: 0; }"
       : st.size === "custom"
       ? "@page { size: " + st.w + "in " + st.h + "in; margin: " + MARGIN + "in; }"
       : st.size === "letter"
       ? "@page { size: letter " + (st.layout === "tall" ? "portrait" : "landscape") + "; margin: 0.3in; }"
       : "@page { margin: 0.4in; }";
-    var TG = window.MLBPrint.tileGrid(st.w, st.h);
     document.getElementById("tip").innerHTML = st.size === "tiles"
-      ? "🧩 <b>" + (TG.cols * TG.rows) + " Letter sheets</b> (" + TG.cols + " across × " + TG.rows + " down) + 1 guide page = a <b>" + st.w + " × " + st.h + " in</b> poster. In the print dialog: <b>Paper: Letter</b>, <b>Layout: Landscape</b>, <b>Margins: None</b> (or Default), <b>Scale: 100 / Actual size</b>, <b>Background graphics: on</b>."
+      ? TG.error ? "⚠️ " + TG.error : "🧩 <b>" + (TG.cols * TG.rows) + " Letter sheets</b> (" + TG.cols + " across × " + TG.rows + " down) + 1 guide page = a <b>" + st.w + " × " + st.h + " in</b> poster. In the print dialog: <b>Paper: Letter</b>, <b>Layout: " + (tOrient === "portrait" ? "Portrait" : "Landscape") + "</b>, <b>Margins: None</b> (or Default), <b>Scale: 100 / Actual size</b>, <b>Background graphics: on</b>."
       : st.size === "custom"
       ? "📐 Page is exactly <b>" + st.w + " × " + st.h + " in</b> (½-inch margins). Click Print, choose <b>Save as PDF</b>, leave Margins and Scale on <b>Default</b>, and send the PDF to your print shop. It's all vector lines and text, so it's sharp at any size."
       : st.size === "letter"
@@ -150,9 +151,10 @@
       document.getElementById("tiles").innerHTML = T.html;
     }
     var s2 = document.getElementById("sheet2");
-    s2.className = "sheet " + st.size + " " + st.layout + " page2";
+    var p2layout = st.size === "tiles" ? (tOrient === "portrait" ? "tall" : "wide") : st.layout;
+    s2.className = "sheet " + st.size + " " + p2layout + " page2";
     s2.style.display = st.extra === "yes" ? "" : "none";
-    if (st.extra === "yes") s2.innerHTML = window.MLBPrint.page2(res, { layout: st.layout, mode: st.mode, aspect: aspect });
+    if (st.extra === "yes") s2.innerHTML = window.MLBPrint.page2(res, { layout: p2layout, mode: st.mode, aspect: aspect });
     var u = new URL(location.href); u.searchParams.set("extra", st.extra); u.searchParams.set("size", st.size); u.searchParams.set("layout", st.layout); u.searchParams.set("mode", st.mode);
     if (big) { u.searchParams.set("w", st.w); u.searchParams.set("h", st.h); } else { u.searchParams.delete("w"); u.searchParams.delete("h"); }
     history.replaceState(null, "", u);

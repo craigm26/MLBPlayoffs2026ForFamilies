@@ -320,63 +320,262 @@
   }
 
 
-  /* ---- tiled poster: a W x H inch poster printed on landscape Letter sheets ----
-     Each sheet carries one tile plus a 0.3in "overlap" strip on its right and bottom edges.
-     Assembly: cut each sheet on its dashed left/top line, lay it over the gray strip of the
-     sheet to its left / above, line up, tape. Rows are letters (A = top), columns numbers. */
-  var SHEET_W = 11, SHEET_H = 8.5, FLAP = 0.3, MAX_TW = 9.8, MAX_TH = 7.0, POSTER_MARGIN = 0.5;
-  function tileGrid(W, H) {
-    var cols = Math.ceil(W / MAX_TW - 1e-9), rows = Math.ceil(H / MAX_TH - 1e-9);
-    return { cols: cols, rows: rows, tw: W / cols, th: H / rows };
-  }
+  /* ---- tiled poster for little hands: W x H inches on Letter sheets ----
+     The sheet grid IS the bracket grid: 7 columns of sheets = the 7 bracket columns
+     (AL WC, AL DS, AL CS, World Series, NL CS, NL DS, NL WC). Rows: a header row, then slots.
+     Every box a child writes or colors in sits wholly inside ONE sheet, at least SAFE inches
+     from its edges; only thin connector lines cross the seams. Each sheet also carries a FLAP
+     (gray overlap strip) on its right/bottom that the next sheet is taped over. */
+  var FLAP = 0.3, SAFE = 0.5, TOP_M = 0.55, BOT_M = 0.7, SIDE_M = 0.35;
+  var PAPER = { portrait: { w: 8.5, h: 11 }, landscape: { w: 11, h: 8.5 } };
+  var COLS = [
+    { rd: "WC", lg: "AL", ids: ["ALWC1", "ALWC2"] }, { rd: "DS", lg: "AL", ids: ["ALDS1", "ALDS2"] }, { rd: "CS", lg: "AL", ids: ["ALCS"] },
+    { rd: "WS", lg: "WS", ids: ["WS"] },
+    { rd: "CS", lg: "NL", ids: ["NLCS"] }, { rd: "DS", lg: "NL", ids: ["NLDS1", "NLDS2"] }, { rd: "WC", lg: "NL", ids: ["NLWC1", "NLWC2"] },
+  ];
   function rowName(r) { return String.fromCharCode(65 + r); }
+  function tileGrid(W, H) {
+    var cols = 7, tw = W / cols, orient = null;
+    // tile + overlap strip + side margins must fit on the paper
+    if (tw + FLAP + 2 * SIDE_M <= PAPER.portrait.w) orient = "portrait";
+    else if (tw + FLAP + 2 * SIDE_M <= PAPER.landscape.w) orient = "landscape";
+    if (!orient) return { error: "Too wide for 7 Letter sheets across (max " + ((PAPER.landscape.w - FLAP - 2 * SIDE_M) * 7).toFixed(1) + " in)." };
+    var maxTH = PAPER[orient].h - TOP_M - BOT_M - FLAP;
+    var rows = Math.max(4, Math.ceil(H / maxTH - 1e-9));
+    return { cols: cols, rows: rows, tw: tw, th: H / rows, orient: orient, paper: PAPER[orient] };
+  }
+
+  function T(x, y, fs, txt, o) {
+    o = o || {};
+    return '<text x="' + x.toFixed(3) + '" y="' + y.toFixed(3) + '" font-size="' + fs.toFixed(3) + '"' + (o.b ? ' font-weight="700"' : '') +
+      ' text-anchor="' + (o.a || "start") + '" fill="' + (o.c || "#111") + '"' + (o.extra || "") + '>' + esc(txt) + '</text>';
+  }
+  function fit(txt, fs, maxW) { return Math.min(fs, maxW / (0.56 * Math.max(1, String(txt).length))); }
+
+  function kidPoster(res, opt, G) {
+    var W = G.cols * G.tw, H = G.rows * G.th, sl = slots(res, opt.mode, opt.picks || {});
+    var R = G.rows, top = 1, bottom = R - 1, mid = Math.max(1, Math.floor(R / 2));
+    var cell = function (c, r) { return { x: c * G.tw + SAFE, y: r * G.th + SAFE, w: G.tw - 2 * SAFE, h: G.th - 2 * SAFE }; };
+    var out = '<svg xmlns="' + NS + '" viewBox="0 0 ' + W + ' ' + H + '" font-family="Fredoka, Arial Rounded MT Bold, sans-serif">';
+    out += '<defs><marker id="karrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#1c3563"/></marker></defs>';
+    out += '<rect width="' + W + '" height="' + H + '" fill="#fff"/>';
+    var boxes = {}, used = {};
+    var mark = function (c, r) { used[c + ":" + r] = 1; };
+
+    // ---- one series box, sized to its sheet ----
+    function seriesBox(id, c, r) {
+      var d = M.BY_ID[id], Rd = M.ROUNDS[d.rd], sd = sl[id], s = res.series[id], C = cell(c, r);
+      var capH = 0.75, head = 0.62;
+      // each team row: [logo] Name  on top, then a full-width row of big win-dots underneath
+      var rh = Math.min(2.9, (C.h - capH - head - 0.15) / 2);
+      var logo = Math.min(1.1, rh * 0.42), nameFs = Math.min(0.5, logo * 0.45);
+      var dia = Math.min(1.15, (C.w - 0.4) / (Rd.need * 1.3 - 0.3), rh - logo - 0.4);
+      var bh = head + 2 * rh + 0.12, bx = C.x, by = C.y + (C.h - capH - bh) / 2, bw = C.w;
+      var gold = d.rd === "WS", col = gold ? "#c9971c" : "#1c3563";
+      var o = '<rect x="' + bx + '" y="' + by + '" width="' + bw + '" height="' + bh + '" rx="0.22" fill="#fff" stroke="' + col + '" stroke-width="0.06"/>';
+      o += '<path d="M' + bx + ' ' + (by + head) + ' V' + (by + 0.22) + ' Q' + bx + ' ' + by + ' ' + (bx + 0.22) + ' ' + by + ' H' + (bx + bw - 0.22) + ' Q' + (bx + bw) + ' ' + by + ' ' + (bx + bw) + ' ' + (by + 0.22) + ' V' + (by + head) + ' Z" fill="' + col + '"/>';
+      var title = gold ? "WORLD SERIES" : d.lg + " " + Rd.short.toUpperCase();
+      o += T(bx + 0.2, by + head * 0.66, fit(title, 0.3, bw * 0.6), title, { b: 1, c: "#fff" });
+      o += T(bx + bw - 0.2, by + head * 0.66, 0.24, "first to " + Rd.need + " wins", { a: "end", c: "#fff" });
+      ["top", "bot"].forEach(function (side, i) {
+        var t = sd[side], ry = by + head + 0.06 + i * rh;
+        if (i) o += '<line x1="' + (bx + 0.15) + '" y1="' + ry + '" x2="' + (bx + bw - 0.15) + '" y2="' + ry + '" stroke="#ccd" stroke-width="0.02"/>';
+        var lx = bx + 0.2 + logo / 2, ly = ry + 0.12 + logo / 2;
+        var isW = sd.winner && sd.winner === t, isL = sd.winner && t && sd.winner !== t && !sd.pick;
+        if (isW) o += '<rect x="' + (bx + 0.08) + '" y="' + (ry + 0.05) + '" width="' + (bw - 0.16) + '" height="' + (rh - 0.1) + '" rx="0.15" fill="#fff1c9"/>';
+        o += '<circle cx="' + lx + '" cy="' + ly + '" r="' + (logo / 2) + '" fill="#fff" stroke="#999" stroke-width="0.03"' + (t ? '' : ' stroke-dasharray="0.08 0.06"') + '/>';
+        var nx = bx + 0.2 + logo + 0.25, nmW = bx + bw - 0.2 - nx;
+        if (t) {
+          var u = M.logoUrl(res, t);
+          if (u) o += '<image href="' + esc(u) + '" x="' + (lx - logo * 0.38) + '" y="' + (ly - logo * 0.38) + '" width="' + (logo * 0.76) + '" height="' + (logo * 0.76) + '"' + (isL ? ' opacity=".35"' : '') + '/>';
+          var seed = res.seedOf[t];
+          if (seed) o += '<circle cx="' + (lx + logo * 0.36) + '" cy="' + (ly + logo * 0.36) + '" r="' + (logo * 0.17) + '" fill="#1c3563"/>' + T(lx + logo * 0.36, ly + logo * 0.36 + logo * 0.06, logo * 0.19, String(seed), { a: "middle", c: "#fff", b: 1 });
+          var lab = nm(res, t) + (isW ? (sd.pick ? " ★" : " ✓") : "");
+          o += T(nx, ly + nameFs * 0.35, fit(lab, nameFs, nmW), lab, { b: 1, c: isL ? "#999" : "#111", extra: isL ? ' text-decoration="line-through"' : "" });
+        } else {
+          // a big write-in line, with a small hint of who it could be
+          o += '<line x1="' + nx + '" y1="' + (ly + 0.12) + '" x2="' + (bx + bw - 0.2) + '" y2="' + (ly + 0.12) + '" stroke="#777" stroke-width="0.03"/>';
+          var hint = M.slotOptions(res, id, side).map(function (q) { return nm(res, q); });
+          if (hint.length > 2) hint = [M.feederLabel(res, id, side, function (q) { return nm(res, q); })];
+          if (opt.mode !== "picks") o += T(nx, ly + 0.36, fit(hint.join(" or "), 0.18, nmW), hint.join(" or "), { c: "#999" });
+        }
+        // the win-dots: big, thick, evenly spaced, fully inside this sheet
+        var won = t && sd.wins ? (sd.wins[t] || 0) : 0;
+        var colr = t && res.teams[t] ? res.teams[t].color : "#1c3563";
+        var dy = ry + 0.12 + logo + 0.15 + dia / 2;
+        for (var k = 0; k < Rd.need; k++) {
+          var cx = bx + 0.2 + dia / 2 + k * dia * 1.3;
+          if (k < won) o += '<circle cx="' + cx + '" cy="' + dy + '" r="' + (dia / 2) + '" fill="' + colr + '" stroke="#222" stroke-width="0.04"/>' + T(cx, dy + dia * 0.2, dia * 0.55, "⚾", { a: "middle" });
+          else o += '<circle cx="' + cx + '" cy="' + dy + '" r="' + (dia / 2) + '" fill="#fff" stroke="#333" stroke-width="0.045" stroke-dasharray="0.12 0.07"/>';
+        }
+      });
+      // caption: next game, place, TV (small, for the grown-ups)
+      var g = (opt.mode === "results" && s.next) ? s.next : (s.games.filter(function (x) { return x.gn === 1; })[0] || s.games[0]);
+      if (opt.mode === "results" && s.winner) o += T(bx + bw / 2, by + bh + 0.3, 0.2, "Final: " + nm(res, s.winner) + " won " + s.wins[s.winner] + "–" + s.wins[s.loser], { a: "middle", c: "#445" });
+      else if (g) {
+        var l1 = "Game " + g.gn + " · " + shortWhen(g), l2 = "📍 " + placeOf(g, res, s) + (g.tv ? "   📺 " + g.tv : "");
+        o += T(bx + bw / 2, by + bh + 0.3, fit(l1, 0.2, bw), l1, { a: "middle", c: "#445" });
+        o += T(bx + bw / 2, by + bh + 0.56, fit(l2, 0.2, bw), l2, { a: "middle", c: "#445" });
+      }
+      boxes[id] = { x: bx, y: by, w: bw, h: bh, rowY: [by + head + 0.06 + rh / 2, by + head + 0.06 + rh * 1.5] };
+      mark(c, r);
+      return o;
+    }
+
+    // ---- header sheets (row A): which round, how many wins; sized to fill the sheet ----
+    COLS.forEach(function (colDef, c) {
+      var C = cell(c, 0), Rd = M.ROUNDS[colDef.rd], o = "", at = function (f) { return C.y + C.h * f; };
+      var mx = C.x + C.w / 2;
+      if (colDef.rd === "WS") {
+        o += T(mx, at(0.13), fit("MLB PLAYOFFS", 0.9, C.w), "MLB PLAYOFFS", { a: "middle", b: 1, c: "#1c3563" });
+        o += T(mx, at(0.27), 0.8, "⚾ " + (opt.season || 2026) + " ⚾", { a: "middle", b: 1, c: "#c9971c" });
+        o += T(mx, at(0.40), fit("Round 4 · WORLD SERIES", 0.5, C.w), "Round 4 · WORLD SERIES", { a: "middle", b: 1, c: "#333" });
+      } else {
+        var rn = M.ROUND_ORDER.indexOf(colDef.rd) + 1, lgName = colDef.lg === "AL" ? "AMERICAN LEAGUE" : "NATIONAL LEAGUE";
+        o += T(mx, at(0.10), fit(lgName, 0.4, C.w), lgName, { a: "middle", b: 1, c: "#8a9bbb" });
+        o += T(mx, at(0.23), 0.62, "Round " + rn, { a: "middle", c: "#333" });
+        o += T(mx, at(0.38), fit(Rd.short.toUpperCase(), 0.9, C.w), Rd.short.toUpperCase(), { a: "middle", b: 1, c: "#1c3563" });
+      }
+      o += T(mx, at(0.53), fit("Win " + Rd.need + " games to move on!", 0.5, C.w), "Win " + Rd.need + " games to move on!", { a: "middle", b: 1, c: "#c0392b" });
+      var dia = Math.min(1.1, C.w / (Rd.need * 1.4)), totalW = Rd.need * dia * 1.3 - dia * 0.3, sx = C.x + (C.w - totalW) / 2;
+      for (var k = 0; k < Rd.need; k++) o += '<circle cx="' + (sx + dia / 2 + k * dia * 1.3) + '" cy="' + (at(0.66)) + '" r="' + (dia / 2) + '" fill="#fff" stroke="#333" stroke-width="0.05" stroke-dasharray="0.12 0.07"/>';
+      o += T(mx, at(0.66) + dia / 2 + 0.55, fit("Color one dot for every win.", 0.36, C.w), "Color one dot for every win.", { a: "middle", c: "#555" });
+      if (colDef.rd !== "WC") o += T(mx, at(0.95), fit("⬇ winners from the round before", 0.26, C.w), colDef.rd === "WS" ? "⬇ the AL champ vs. the NL champ" : "⬇ winners from the round before", { a: "middle", c: "#888" });
+      else o += T(mx, at(0.95), fit("⬇ 4 teams start here", 0.26, C.w), "⬇ the playoffs start here!", { a: "middle", c: "#888" });
+      out += o; mark(c, 0);
+    });
+
+    // ---- the series boxes ----
+    out += seriesBox("ALWC1", 0, top) + seriesBox("ALWC2", 0, bottom) + seriesBox("ALDS1", 1, top) + seriesBox("ALDS2", 1, bottom) + seriesBox("ALCS", 2, mid);
+    out += seriesBox("WS", 3, mid);
+    out += seriesBox("NLCS", 4, mid) + seriesBox("NLDS1", 5, top) + seriesBox("NLDS2", 5, bottom) + seriesBox("NLWC1", 6, top) + seriesBox("NLWC2", 6, bottom);
+
+    // ---- connectors: thin lines only; they may cross seams ----
+    function link(from, to, side, rightward) {
+      var A = boxes[from], B = boxes[to], y1 = A.y + A.h / 2, y2 = B.rowY[side === "top" ? 0 : 1];
+      var x1 = rightward ? A.x + A.w : A.x, x2 = rightward ? B.x : B.x + B.w;
+      var xm = rightward ? x2 - 0.25 : x2 + 0.25;   // turn just before the target box, inside its sheet
+      out += '<path d="M' + x1 + ' ' + y1 + ' H' + xm + ' V' + y2 + ' H' + x2 + '" fill="none" stroke="#1c3563" stroke-width="0.05" marker-end="url(#karrow)"/>';
+    }
+    link("ALWC1", "ALDS1", "bot", true); link("ALWC2", "ALDS2", "bot", true);
+    link("ALDS1", "ALCS", "top", true); link("ALDS2", "ALCS", "bot", true); link("ALCS", "WS", "top", true);
+    link("NLWC1", "NLDS1", "bot", false); link("NLWC2", "NLDS2", "bot", false);
+    link("NLDS1", "NLCS", "top", false); link("NLDS2", "NLCS", "bot", false); link("NLCS", "WS", "bot", false);
+
+    // ---- champion box above the World Series ----
+    var champRow = mid - 1 >= 1 ? mid - 1 : null;
+    if (champRow != null && !used["3:" + champRow]) {
+      var C = cell(3, champRow), champ = opt.mode === "picks" ? (opt.picks || {}).WS : opt.mode === "results" ? res.champion : null;
+      var o = '<rect x="' + C.x + '" y="' + C.y + '" width="' + C.w + '" height="' + C.h + '" rx="0.3" fill="#fff8e1" stroke="#c9971c" stroke-width="0.07"/>';
+      o += T(C.x + C.w / 2, C.y + C.h * 0.3, Math.min(1.4, C.h * 0.25), "🏆", { a: "middle" });
+      o += T(C.x + C.w / 2, C.y + C.h * 0.3 + 0.7, fit("CHAMPION!", 0.6, C.w - 0.4), "CHAMPION!", { a: "middle", b: 1, c: "#c9971c" });
+      if (champ) o += T(C.x + C.w / 2, C.y + C.h * 0.78, fit(nm(res, champ), 0.6, C.w - 0.4), nm(res, champ), { a: "middle", b: 1 });
+      else {
+        o += '<circle cx="' + (C.x + C.w / 2) + '" cy="' + (C.y + C.h * 0.62) + '" r="' + Math.min(0.55, C.h * 0.1) + '" fill="#fff" stroke="#999" stroke-width="0.03" stroke-dasharray="0.08 0.06"/>';
+        o += '<line x1="' + (C.x + 0.4) + '" y1="' + (C.y + C.h * 0.86) + '" x2="' + (C.x + C.w - 0.4) + '" y2="' + (C.y + C.h * 0.86) + '" stroke="#777" stroke-width="0.03"/>';
+        o += T(C.x + C.w / 2, C.y + C.h * 0.86 + 0.3, 0.2, "write the winner here", { a: "middle", c: "#999" });
+      }
+      out += o; mark(3, champRow);
+    }
+
+    // ---- fill every leftover sheet with something to draw or read (never a blank sheet) ----
+    var F = window.MLBFACTS ? window.MLBFACTS.FACTS : [];
+    var kidFacts = [0, 1, 3, 16, 12, 4, 11, 14].map(function (i) { return F[i]; }).filter(Boolean), fi = 0;
+    function card(c, r, kind) {
+      var C = cell(c, r), o = "";
+      if (kind === "draw") {
+        o += '<rect x="' + C.x + '" y="' + C.y + '" width="' + C.w + '" height="' + C.h + '" rx="0.3" fill="#fff" stroke="#8a9bbb" stroke-width="0.05" stroke-dasharray="0.25 0.12"/>';
+        var t1 = "🎨 Draw your team's mascot!";
+        o += T(C.x + C.w / 2, C.y + 0.75, fit(t1, 0.5, C.w - 0.4), t1, { a: "middle", b: 1, c: "#1c3563" });
+      } else if (kind === "how") {
+        o += '<rect x="' + C.x + '" y="' + C.y + '" width="' + C.w + '" height="' + C.h + '" rx="0.3" fill="#eef3fb"/>';
+        var lines = ["How to play", "1. Every time a team wins,", "    color one of its dots.", "2. Fill ALL your dots first?", "    You move on! ➜", "3. Write the winner in the", "    next box.", "4. Last team left = CHAMPION! 🏆"];
+        var step = Math.min(0.85, (C.h - 1) / 8);
+        lines.forEach(function (ln, i) { o += T(C.x + 0.35, C.y + 0.9 + i * step, i ? fit(ln, 0.42, C.w - 0.6) : 0.65, ln, { b: i === 0, c: i ? "#222" : "#1c3563" }); });
+      } else if (kind === "league") {
+        var lg = c < 3 ? "AL" : "NL", nmL = lg === "AL" ? "American League" : "National League";
+        var teams = res.seeds[lg], lz = Math.min(1.7, (C.w - 0.4) / 3.4, (C.h - 1.6) / 3.2);
+        var gh2 = 2 * lz * 1.55, y0 = C.y + (C.h - gh2) / 2 + 0.4;
+        o += T(C.x + C.w / 2, y0 - 0.55, fit(nmL, 0.55, C.w), nmL, { a: "middle", b: 1, c: "#8a9bbb" });
+        teams.forEach(function (t, i) {
+          var cx = C.x + C.w / 2 + ((i % 3) - 1) * lz * 1.15, cy = y0 + lz / 2 + Math.floor(i / 3) * (lz * 1.55);
+          var u = M.logoUrl(res, t);
+          o += '<circle cx="' + cx + '" cy="' + cy + '" r="' + lz / 2 + '" fill="#fff" stroke="#bbb" stroke-width="0.03"/>';
+          if (u) o += '<image href="' + esc(u) + '" x="' + (cx - lz * 0.38) + '" y="' + (cy - lz * 0.38) + '" width="' + lz * 0.76 + '" height="' + lz * 0.76 + '"/>';
+          o += T(cx, cy + lz / 2 + 0.32, fit(nm(res, t), 0.28, lz * 1.1), nm(res, t), { a: "middle", c: "#333" });
+        });
+      } else {
+        var f = kidFacts[fi++ % Math.max(1, kidFacts.length)];
+        if (!f) return;
+        o += '<rect x="' + C.x + '" y="' + C.y + '" width="' + C.w + '" height="' + C.h + '" rx="0.3" fill="#f3fbf6"/>';
+        o += T(C.x + C.w / 2, C.y + C.h * 0.35, Math.min(1.3, C.h * 0.22), f.e, { a: "middle" });
+        o += T(C.x + C.w / 2, C.y + C.h * 0.35 + 0.7, 0.3, "Did you know?", { a: "middle", b: 1, c: "#1f7a4d" });
+        wrap(f.t, Math.max(12, Math.floor((C.w - 0.4) / (0.36 * 0.55)))).forEach(function (ln, i) {
+          o += T(C.x + C.w / 2, C.y + C.h * 0.35 + 1.25 + i * 0.48, 0.36, ln, { a: "middle", c: "#222" });
+        });
+      }
+      out += o; mark(c, r);
+    }
+    for (var r = 1; r < R; r++) for (var c = 0; c < 7; c++) {
+      if (used[c + ":" + r]) continue;
+      var kind = c === 3 ? (used["3:how"] ? "fact" : (used["3:how"] = "how")) : (c === 2 || c === 4) ? (used[c + ":lg"] ? "fact" : (used[c + ":lg"] = "league")) : (c === 0 || c === 6) ? "draw" : "fact";
+      card(c, r, kind);
+    }
+    out += T(W / 2, H - 0.25, 0.18, opt.footer || "", { a: "middle", c: "#aaa" });
+    kidPoster.lastBoxes = boxes;   // for tests: every fillable box must sit inside one sheet
+    return out + '</svg>';
+  }
+
   function tiles(res, opt) {
     var W = opt.w, H = opt.h, G = tileGrid(W, H);
-    var inner = build(res, Object.assign({}, opt, { aspect: (W - 2 * POSTER_MARGIN) / (H - 2 * POSTER_MARGIN) }))
-      .replace("<svg ", '<svg x="' + POSTER_MARGIN + '" y="' + POSTER_MARGIN + '" width="' + (W - 2 * POSTER_MARGIN) + '" height="' + (H - 2 * POSTER_MARGIN) + '" ');
-    var n = G.cols * G.rows, html = "";
+    if (G.error) return { html: '<div class="tile-page"><div class="tp-in" style="padding:1in">' + esc(G.error) + '</div></div>', grid: G, sheets: 0 };
+    var inner = kidPoster(res, opt, G);
+    var P = G.paper, n = G.cols * G.rows, html = "";
+    var pageStyle = 'style="width:' + P.w + 'in;height:' + P.h + 'in"';
     // guide sheet
-    var gw = 9.6, gh = gw * H / W;
-    if (gh > 5.2) { gh = 5.2; gw = gh * W / H; }
+    var gw = P.w - 1.2, gh = gw * H / W;
+    if (gh > P.h * 0.55) { gh = P.h * 0.55; gw = gh * W / H; }
     var grid = "";
     for (var r = 0; r < G.rows; r++) for (var c = 0; c < G.cols; c++) {
-      grid += '<rect x="' + (c * G.tw) + '" y="' + (r * G.th) + '" width="' + G.tw + '" height="' + G.th + '" fill="none" stroke="#d33" stroke-width="' + (W / 400) + '"/>';
-      grid += '<text x="' + ((c + 0.5) * G.tw) + '" y="' + ((r + 0.5) * G.th + H / 60) + '" font-size="' + (H / 16) + '" font-weight="700" text-anchor="middle" fill="#d33" fill-opacity=".75" font-family="Fredoka, sans-serif">' + rowName(r) + (c + 1) + '</text>';
+      grid += '<rect x="' + (c * G.tw) + '" y="' + (r * G.th) + '" width="' + G.tw + '" height="' + G.th + '" fill="none" stroke="#d33" stroke-width="' + (W / 300) + '"/>';
+      grid += '<text x="' + ((c + 0.5) * G.tw) + '" y="' + (r * G.th + H / 22) + '" font-size="' + (H / 18) + '" font-weight="700" text-anchor="middle" fill="#d33" fill-opacity=".8" font-family="Fredoka, sans-serif">' + rowName(r) + (c + 1) + '</text>';
     }
-    html += '<div class="tile-page guide"><div class="tp-in">' +
+    html += '<div class="tile-page guide" ' + pageStyle + '><div class="tp-in">' +
       '<div class="tp-title">🧩 Your ' + W + ' × ' + H + ' inch wall bracket: ' + n + ' sheets + this guide</div>' +
-      '<svg xmlns="' + NS + '" viewBox="0 0 ' + W + ' ' + H + '" style="width:' + gw + 'in;height:' + gh + 'in;display:block;margin:0.1in auto;border:1px solid #999"><rect width="' + W + '" height="' + H + '" fill="#fff"/>' + inner + grid + '</svg>' +
+      '<svg xmlns="' + NS + '" viewBox="0 0 ' + W + ' ' + H + '" style="width:' + gw + 'in;height:' + gh + 'in;display:block;margin:0.1in auto;border:1px solid #999">' + inner.replace(/^<svg[^>]*>/, "").replace(/<\/svg>$/, "") + grid + '</svg>' +
       '<ol class="tp-steps">' +
-      '<li><b>Print every page at 100%</b> ("Actual size", not "Fit to page"), Letter paper, <b>landscape</b>. Turn on "Background graphics" for team colors.</li>' +
-      '<li><b>Lay the sheets out like the map above</b>: rows <b>A</b> (top) to <b>' + rowName(G.rows - 1) + '</b> (bottom), columns <b>1</b> (left) to <b>' + G.cols + '</b> (right). Every sheet has its name in the corner.</li>' +
-      '<li><b>Cut each sheet along its dashed lines</b> ✂️ (the left and top edges; the last column and bottom row have a dashed line on the right/bottom too).</li>' +
-      '<li><b>Overlap and tape:</b> slide each sheet over the <b>gray strip</b> of the sheet to its left and the one above it, line the pictures up, and tape on the back. Tip: build each row first, then join the rows.</li>' +
+      '<li><b>Print every page at 100%</b> ("Actual size", not "Fit to page"), Letter paper, <b>' + G.orient + '</b>. Turn on "Background graphics".</li>' +
+      '<li><b>Lay the sheets out like the map</b>: rows <b>A</b> (top) to <b>' + rowName(G.rows - 1) + '</b>, columns <b>1</b> (left) to <b>' + G.cols + '</b>. Each column of sheets is one round of the playoffs.</li>' +
+      '<li><b>Cut along the dashed lines</b> ✂️ on each sheet\'s left and top edges (and right/bottom on the last column and row).</li>' +
+      '<li><b>Overlap and tape:</b> slide each sheet over the <b>gray strip</b> of the sheet to its left and above, line up the connector lines, tape on the back.</li>' +
+      '<li>Every dot, name line and box sits wholly on one sheet, so nothing a kid colors ever crosses a seam. 🖍️</li>' +
       '</ol></div></div>';
+    var body = inner.replace(/^<svg[^>]*>/, "").replace(/<\/svg>$/, "");
     for (var rr = 0; rr < G.rows; rr++) for (var cc = 0; cc < G.cols; cc++) {
       var lastC = cc === G.cols - 1, lastR = rr === G.rows - 1;
       var fx = lastC ? 0 : FLAP, fy = lastR ? 0 : FLAP;
       var tx = cc * G.tw, ty = rr * G.th, vw = G.tw + fx, vh = G.th + fy;
-      var sw = W / 1500;
       var ov = "";
       if (fx) ov += '<rect x="' + (tx + G.tw) + '" y="' + ty + '" width="' + fx + '" height="' + vh + '" fill="#888" fill-opacity=".28"/>' +
         '<text transform="translate(' + (tx + G.tw + fx / 2 + 0.05) + ',' + (ty + vh / 2) + ') rotate(90)" font-size="0.13" text-anchor="middle" fill="#444" font-family="Fredoka, sans-serif">overlap: ' + rowName(rr) + (cc + 2) + ' goes on top</text>';
       if (fy) ov += '<rect x="' + tx + '" y="' + (ty + G.th) + '" width="' + (fx ? G.tw : vw) + '" height="' + fy + '" fill="#888" fill-opacity=".28"/>' +
         '<text x="' + (tx + G.tw / 2) + '" y="' + (ty + G.th + fy / 2 + 0.05) + '" font-size="0.13" text-anchor="middle" fill="#444" font-family="Fredoka, sans-serif">overlap: ' + rowName(rr + 1) + (cc + 1) + ' goes on top</text>';
-      var cut = 'stroke="#000" stroke-width="' + sw + '" stroke-dasharray="0.08 0.05"';
+      var cut = 'stroke="#000" stroke-width="0.012" stroke-dasharray="0.08 0.05"';
       ov += '<line x1="' + tx + '" y1="' + ty + '" x2="' + tx + '" y2="' + (ty + vh) + '" ' + cut + '/>';
       ov += '<line x1="' + tx + '" y1="' + ty + '" x2="' + (tx + vw) + '" y2="' + ty + '" ' + cut + '/>';
       if (lastC) ov += '<line x1="' + (tx + G.tw) + '" y1="' + ty + '" x2="' + (tx + G.tw) + '" y2="' + (ty + vh) + '" ' + cut + '/>';
       if (lastR) ov += '<line x1="' + tx + '" y1="' + (ty + G.th) + '" x2="' + (tx + vw) + '" y2="' + (ty + G.th) + '" ' + cut + '/>';
       var name = rowName(rr) + (cc + 1);
-      var nb = [cc > 0 ? "⬅ " + rowName(rr) + cc : null, rr > 0 ? "⬆ " + rowName(rr - 1) + (cc + 1) : null, !lastC ? rowName(rr) + (cc + 2) + " ➡" : null, !lastR ? rowName(rr + 1) + (cc + 1) + " ⬇" : null].filter(Boolean).join("  ·  ");
-      html += '<div class="tile-page"><div class="tp-name">' + name + '</div>' +
-        '<div class="tp-head">MLB Playoffs ' + (opt.season || 2026) + ' wall bracket · sheet <b>' + name + '</b> (' + ((rr * G.cols) + cc + 1) + ' of ' + n + ') · row ' + rowName(rr) + ', column ' + (cc + 1) + '</div>' +
-        '<svg xmlns="' + NS + '" class="tp-svg" viewBox="' + tx + ' ' + ty + ' ' + vw + ' ' + vh + '" style="width:' + vw + 'in;height:' + vh + 'in;left:' + ((SHEET_W - (G.tw + FLAP)) / 2) + 'in">' +
-        '<rect x="' + tx + '" y="' + ty + '" width="' + vw + '" height="' + vh + '" fill="#fff"/>' + inner + ov + '</svg>' +
-        '<div class="tp-foot">✂️ Cut on the dashed lines. Gray strip = tape the next sheet over it. Neighbors: ' + nb + '</div></div>';
+      var nb = [cc > 0 ? "⬅ " + rowName(rr) + cc : null, rr > 0 ? "⬆ " + rowName(rr - 1) + (cc + 1) : null, !lastC ? rowName(rr) + (cc + 2) + " ➡" : null, !lastR ? rowName(rr + 1) + (cc + 1) + " ⬇" : null].filter(Boolean).join(" · ");
+      html += '<div class="tile-page" ' + pageStyle + '><div class="tp-name">' + name + '</div>' +
+        '<div class="tp-head">MLB Playoffs ' + (opt.season || 2026) + ' wall bracket · sheet <b>' + name + '</b> (' + ((rr * G.cols) + cc + 1) + ' of ' + n + ')</div>' +
+        '<svg xmlns="' + NS + '" class="tp-svg" viewBox="' + tx + ' ' + ty + ' ' + vw + ' ' + vh + '" style="width:' + vw + 'in;height:' + vh + 'in;left:' + ((P.w - (G.tw + FLAP)) / 2) + 'in;top:' + TOP_M + 'in" font-family="Fredoka, Arial Rounded MT Bold, sans-serif">' +
+        '<defs><marker id="karrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#1c3563"/></marker></defs>' +
+        '<rect x="' + tx + '" y="' + ty + '" width="' + vw + '" height="' + vh + '" fill="#fff"/>' + body + ov + '</svg>' +
+        '<div class="tp-foot">✂️ Cut on the dashed lines · gray strip = tape the next sheet over it · ' + nb + '</div></div>';
     }
     return { html: html, grid: G, sheets: n };
   }
 
-  window.MLBPrint = { build: build, page2: page2, tiles: tiles, tileGrid: tileGrid };
+  window.MLBPrint = { build: build, page2: page2, tiles: tiles, tileGrid: tileGrid, kidPoster: kidPoster };
 })();
